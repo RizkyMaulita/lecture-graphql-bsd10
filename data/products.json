@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "name": "Baju",
+    "price": 250000,
+    "stock": 20
+  },
+  {
+    "id": 2,
+    "name": "Celana",
+    "price": 300000,
+    "stock": 20
+  },
+  {
+    "id": 3,
+    "name": "Kemeja",
+    "price": 400000,
+    "stock": 20
+  },
+  {
+    "id": 4,
+    "name": "Jacket",
+    "price": 250000,
+    "stock": 10
+  }
+]
