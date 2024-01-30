@@ -3,10 +3,11 @@ const { startStandaloneServer } = require("@apollo/server/standalone");
 const { bookTypeDefs, bookResolvers } = require("./schemas/book");
 const { productTypeDefs, productResolvers } = require("./schemas/product");
 const { mongoConnect } = require("./config/mongoConnection");
+const { userTypeDefs, userResolvers } = require("./schemas/user");
 
 const server = new ApolloServer({
-  typeDefs: [bookTypeDefs, productTypeDefs],
-  resolvers: [productResolvers, bookResolvers],
+  typeDefs: [bookTypeDefs, productTypeDefs, userTypeDefs],
+  resolvers: [productResolvers, bookResolvers, userResolvers],
   introspection: true, // untuk ketika deploy, apollo playground tetap bisa diakses
 });
 

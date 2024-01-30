@@ -1,7 +1,14 @@
 const dataProducts = require("../data/products.json");
 const { getDatabase } = require("../config/mongoConnection");
 const { ObjectId } = require("mongodb");
-const { findAllProducts, findOneProductById } = require("../models/product");
+const {
+  findAllProducts,
+  findOneProductById,
+  createOneProduct,
+  updateOneProduct,
+  deleteOneProduct,
+  addImageProduct,
+} = require("../models/product");
 // define schema / typedefs => untuk contract
 const typeDefs = `#graphql
   #ini comment
@@ -10,7 +17,9 @@ const typeDefs = `#graphql
     name: String!
     price: Int
     stock: Int
+    authorId: ID
     imageUrls: [Image]
+    author: User
   }
 
   type Image {
@@ -35,6 +44,7 @@ const typeDefs = `#graphql
     createProduct(name: String!, price: Int!, stock: Int!): Product
     updateProductById(id: ID!, productPayload: ProductUpdateInput): Product
     deleteProductById(id: ID!): String
+    addImageProduct(imgUrl: String!, id: ID!): Product
   }
 `;
 
@@ -62,19 +72,25 @@ const resolvers = {
   },
   Mutation: {
     createProduct: async (_parent, args) => {
-      const db = getDatabase();
-      const productCollection = db.collection("products");
+      // const db = getDatabase();
+      // const productCollection = db.collection("products");
 
-      const newProduct = await productCollection.insertOne({
+      // const newProduct = await productCollection.insertOne({
+      //   name: args.name,
+      //   stock: args.stock,
+      //   price: args.price,
+      // });
+
+      // console.log(newProduct, "<<< new product");
+
+      // const product = await productCollection.findOne({
+      //   _id: newProduct.insertedId,
+      // });
+
+      const product = await createOneProduct({
         name: args.name,
         stock: args.stock,
         price: args.price,
-      });
-
-      console.log(newProduct, "<<< new product");
-
-      const product = await productCollection.findOne({
-        _id: newProduct.insertedId,
       });
 
       return product;
@@ -97,36 +113,45 @@ const resolvers = {
         payload.price = args.productPayload.price;
       }
 
-      await productCollection.updateOne(
-        {
-          _id: new ObjectId(args.id),
-        },
-        {
-          // $set: {
-          //   ...args.productPayload,
-          //   // name: args.productPayload.name,
-          //   // stock: args.productPayload.stock,
-          //   // price: args.productPayload.price,
-          // },
-          $set: payload,
-        }
-      );
+      // await productCollection.updateOne(
+      //   {
+      //     _id: new ObjectId(args.id),
+      //   },
+      //   {
+      //     // $set: {
+      //     //   ...args.productPayload,
+      //     //   // name: args.productPayload.name,
+      //     //   // stock: args.productPayload.stock,
+      //     //   // price: args.productPayload.price,
+      //     // },
+      //     $set: payload,
+      //   }
+      // );
 
-      const product = await productCollection.findOne({
-        _id: new ObjectId(args.id),
-      });
+      // const product = await productCollection.findOne({
+      //   _id: new ObjectId(args.id),
+      // });
+
+      const product = await updateOneProduct(args.id, payload);
 
       return product;
     },
     deleteProductById: async (_parent, args) => {
-      const db = getDatabase();
-      const productCollection = db.collection("products");
+      // const db = getDatabase();
+      // const productCollection = db.collection("products");
 
-      await productCollection.deleteOne({
-        _id: new ObjectId(args.id),
-      });
+      // await productCollection.deleteOne({
+      //   _id: new ObjectId(args.id),
+      // });
+
+      await deleteOneProduct(args.id);
 
       return `Successfully deleted product with id ${args.id}`;
+    },
+    addImageProduct: async (_parent, args) => {
+      const product = await addImageProduct(args.id, args.imgUrl);
+
+      return product;
     },
   },
 };
