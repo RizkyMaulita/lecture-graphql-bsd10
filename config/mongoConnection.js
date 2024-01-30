@@ -34,4 +34,5 @@ module.exports = {
   mongoConnect,
   db,
   getDatabase,
+  client,
 };

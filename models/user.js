@@ -43,7 +43,21 @@ const findAllUser = async () => {
   return users;
 };
 
+const findOneUserByEmail = async (email) => {
+  const user = await getCollection().findOne({ email });
+
+  return user;
+};
+
+const findUserById = async (id) => {
+  const user = await getCollection().findOne({ _id: new ObjectId(id) });
+
+  return user;
+};
+
 module.exports = {
   createUser,
   findAllUser,
+  findOneUserByEmail,
+  findUserById,
 };

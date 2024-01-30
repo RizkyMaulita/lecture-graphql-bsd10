@@ -1,5 +1,5 @@
 const dataProducts = require("../data/products.json");
-const { getDatabase } = require("../config/mongoConnection");
+const { getDatabase, client } = require("../config/mongoConnection");
 const { ObjectId } = require("mongodb");
 const {
   findAllProducts,
@@ -9,6 +9,17 @@ const {
   deleteOneProduct,
   addImageProduct,
 } = require("../models/product");
+const { GraphQLError } = require("graphql");
+
+const Redis = require("ioredis");
+// const redis = new Redis(); // ini akan connect ke localhost:6379
+
+const redis = new Redis({
+  host: process.env.REDIS_HOST,
+  port: Number(process.env.REDIS_PORT),
+  password: process.env.REDIS_PASSWORD,
+});
+
 // define schema / typedefs => untuk contract
 const typeDefs = `#graphql
   #ini comment
@@ -24,6 +35,16 @@ const typeDefs = `#graphql
 
   type Image {
     name: String
+    createdAt: String
+    updatedAt: String
+  }
+
+  type Order {
+    _id: ID
+    userId: ID
+    productId: ID
+    quantity: Int
+    totalPrice: Int
   }
 
   # kalian bebas define nama type apapun kecuali "Query" dan "Mutation"
@@ -45,6 +66,7 @@ const typeDefs = `#graphql
     updateProductById(id: ID!, productPayload: ProductUpdateInput): Product
     deleteProductById(id: ID!): String
     addImageProduct(imgUrl: String!, id: ID!): Product
+    createOrder(productId: ID!, quantity: Int!): Order
   }
 `;
 
@@ -56,7 +78,21 @@ const resolvers = {
       // console.log(db, "<<< db di resolvers");
       // console.log(contextValue.db, "<<< context db");
       // console.log(getDatabase(), "<<< get database");
+      // console.log(contextValue.authentication(), "<<< authentication");
+      const userLogin = await contextValue.authentication();
+
+      const productCache = await redis.get("products");
+
+      console.log(productCache, "<<< product cache");
+      // console.log(userLogin, "<<< userlogin");
+
+      if (productCache) {
+        return JSON.parse(productCache);
+      }
+
       const products = await findAllProducts();
+
+      redis.set("products", JSON.stringify(products)); // value yang disimpan harus berupa string
       return products;
     },
     getProductById: async (_, args, contextValue) => {
@@ -92,6 +128,13 @@ const resolvers = {
         stock: args.stock,
         price: args.price,
       });
+
+      /**
+        cara 1: findAllproducts => set ulang cachenya 
+        cara 2: delete langsung cachenya, sehingga nanti saat ada orang yg hit getAllproducts, maka langsung ke db
+        
+       */
+      redis.del("products"); //invalidate cache
 
       return product;
     },
@@ -152,6 +195,72 @@ const resolvers = {
       const product = await addImageProduct(args.id, args.imgUrl);
 
       return product;
+    },
+    createOrder: async (_, args, contextValue) => {
+      const userLogin = await contextValue.authentication();
+      const session = client.startSession();
+
+      try {
+        session.startTransaction();
+
+        const { productId, quantity } = args;
+        const { userId } = userLogin;
+        const database = getDatabase();
+        const orderCollection = database.collection("orders");
+        const productCollection = database.collection("products");
+
+        const product = await productCollection.findOne(
+          {
+            _id: new ObjectId(productId),
+          },
+          { session }
+        );
+
+        if (!product) {
+          throw new GraphQLError("Product Not Found");
+        }
+
+        if (product.stock < quantity) {
+          throw new GraphQLError("Out of stock");
+        }
+
+        const payloadOrder = {
+          productId,
+          quantity,
+          userId,
+          totalPrice: product.price * quantity,
+        };
+
+        const newOrder = await orderCollection.insertOne(payloadOrder, {
+          session,
+        });
+
+        await productCollection.updateOne(
+          {
+            _id: product._id,
+          },
+          {
+            $set: {
+              stock: product.stock - quantity,
+            },
+          },
+          { session }
+        );
+
+        await session.commitTransaction();
+
+        const order = await orderCollection.findOne({
+          _id: newOrder.insertedId,
+        });
+
+        return order;
+      } catch (error) {
+        await session.abortTransaction();
+        // console.log(error.message);
+        throw new GraphQLError(error.message || "An error while create order");
+      } finally {
+        await session.endSession();
+      }
     },
   },
 };

@@ -1,9 +1,15 @@
+require("dotenv").config();
+
 const { ApolloServer } = require("@apollo/server");
 const { startStandaloneServer } = require("@apollo/server/standalone");
 const { bookTypeDefs, bookResolvers } = require("./schemas/book");
 const { productTypeDefs, productResolvers } = require("./schemas/product");
 const { mongoConnect } = require("./config/mongoConnection");
 const { userTypeDefs, userResolvers } = require("./schemas/user");
+const { GraphQLError } = require("graphql");
+const { verifyToken } = require("./utils/jwt");
+const { findUserById } = require("./models/user");
+const authentication = require("./utils/auth");
 
 const server = new ApolloServer({
   typeDefs: [bookTypeDefs, productTypeDefs, userTypeDefs],
@@ -18,12 +24,10 @@ const server = new ApolloServer({
       // console.log("context dipanggil");
       // tidak direkomendasikan bikin sebuah auth / function async di luar return
       return {
-        db,
+        // db,
         // userId: 1,
         authentication: () => {
-          return {
-            userId: 1,
-          };
+          return authentication(req);
         },
       };
     },

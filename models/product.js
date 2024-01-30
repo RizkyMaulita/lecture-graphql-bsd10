@@ -34,9 +34,9 @@ const findAllProducts = async () => {
         stock: 1,
       },
     },
-    {
-      $limit: 3,
-    },
+    // {
+    //   $limit: 3,
+    // },
   ];
 
   const products = await getCollection().aggregate(agg).toArray();
@@ -140,6 +140,8 @@ const addImageProduct = async (id, imgUrl) => {
         // untuk push yang unique
         imageUrls: {
           name: imgUrl,
+          createdAt: new Date(),
+          updatedAt: new Date(),
         },
       },
     }
